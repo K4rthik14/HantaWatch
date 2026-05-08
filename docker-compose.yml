@@ -1,0 +1,83 @@
+name: matm
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: matm-backend:latest
+    container_name: matm-backend
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      chromadb:
+        condition: service_started
+      redis:
+        condition: service_healthy
+    networks:
+      - matm-network
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: matm-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: matm
+      POSTGRES_PASSWORD: matm
+      POSTGRES_DB: matm
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U matm -d matm"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - matm-network
+    restart: unless-stopped
+
+  chromadb:
+    image: chromadb/chroma:latest
+    container_name: matm-chromadb
+    ports:
+      - "8001:8000"
+    volumes:
+      - chroma_data:/chroma/chroma
+    environment:
+      IS_PERSISTENT: "TRUE"
+      ANONYMIZED_TELEMETRY: "FALSE"
+    networks:
+      - matm-network
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: matm-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --save 60 1 --loglevel warning
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - matm-network
+    restart: unless-stopped
+
+networks:
+  matm-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  chroma_data:
+  redis_data:

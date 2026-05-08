@@ -1,0 +1,24 @@
+name: matm
+
+# Development overrides — use alongside the base compose file:
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+
+services:
+  backend:
+    build:
+      target: builder          # Stop at builder stage — no need for the slim runtime
+    volumes:
+      - ./backend:/app         # Live-reload: local source is mounted over the container fs
+    environment:
+      APP_ENV: dev
+      DEBUG: "true"
+    command:
+      - uvicorn
+      - app.main:app
+      - --host
+      - "0.0.0.0"
+      - --port
+      - "8000"
+      - --reload              # Watch for file changes and auto-restart
+      - --reload-dir
+      - /app/app
